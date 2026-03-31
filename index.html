@@ -3,15 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CRM - Gestión de Rechazos (Conectado)</title>
+    <title>CRM - Gestión de Rechazos</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { background-color: #f8fafc; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* Estilos personalizados adicionales a Tailwind */
+        body {
+            background-color: #f8fafc; /* slate-50 */
+        }
+        
+        /* Ocultar scrollbar para un look más limpio en las tarjetas */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
 
+        /* Animación suave para la expansión */
         .card-content {
             max-height: 0;
             overflow: hidden;
@@ -20,19 +31,24 @@
         }
         
         .card.expanded .card-content {
-            max-height: 1200px;
+            max-height: 1000px; /* Un valor alto para asegurar que quepa el contenido */
             opacity: 1;
-            padding-top: 1rem;
+            padding-top: 1rem; /* pt-4 en Tailwind */
         }
         
-        .chevron-icon { transition: transform 0.3s ease; }
-        .card.expanded .chevron-icon { transform: rotate(180deg); }
+        .chevron-icon {
+            transition: transform 0.3s ease;
+        }
         
+        .card.expanded .chevron-icon {
+            transform: rotate(180deg);
+        }
+        
+        /* Efecto de salida al guardar */
         .fade-out {
             opacity: 0;
             transform: scale(0.95);
             transition: all 0.4s ease;
-            pointer-events: none;
         }
     </style>
 </head>
@@ -48,7 +64,7 @@
                 <span id="counter-badge" class="bg-indigo-800 px-3 py-1 rounded-full font-medium shadow-inner hidden">
                     <span id="pending-count">0</span> pendientes
                 </span>
-                <button onclick="fetchData()" class="p-2 hover:bg-indigo-500 rounded-full transition-colors" title="Actualizar Datos">
+                <button onclick="fetchData()" class="p-2 hover:bg-indigo-500 rounded-full transition-colors tooltip" title="Actualizar Datos">
                     <i data-lucide="refresh-cw" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -76,15 +92,23 @@
 
     <main class="flex-grow overflow-y-auto p-4 md:p-6 lg:p-8 no-scrollbar">
         <div class="max-w-4xl mx-auto">
+            
             <div id="loader" class="flex flex-col items-center justify-center py-20">
                 <i data-lucide="loader-2" class="w-10 h-10 text-indigo-500 animate-spin mb-4"></i>
                 <p class="text-slate-500 font-medium">Conectando con Google Sheets...</p>
+                <p class="text-xs text-slate-400 mt-2">Buscando registros sin atender</p>
             </div>
 
             <div id="error-message" class="hidden bg-red-50 border-l-4 border-red-500 p-4 rounded-md shadow-sm mb-6">
                 <div class="flex">
-                    <i data-lucide="alert-circle" class="h-5 w-5 text-red-400"></i>
-                    <p class="ml-3 text-sm text-red-700 font-medium" id="error-text"></p>
+                    <div class="flex-shrink-0">
+                        <i data-lucide="alert-circle" class="h-5 w-5 text-red-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-red-700 font-medium" id="error-text">
+                            Error al cargar los datos.
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -93,234 +117,326 @@
                     <i data-lucide="check-circle-2" class="w-12 h-12 text-green-600"></i>
                 </div>
                 <h3 class="text-lg font-bold text-slate-800 mb-1">¡Todo al día!</h3>
-                <p class="text-slate-500 max-w-sm">No hay registros pendientes en esta sección.</p>
+                <p class="text-slate-500 max-w-sm">No hay registros pendientes sin comentarios en esta pestaña.</p>
             </div>
 
-            <div id="cards-container" class="space-y-4"></div>
+            <div id="cards-container" class="space-y-4">
+                </div>
+
         </div>
     </main>
 
     <div id="success-toast" class="fixed bottom-4 right-4 bg-slate-800 text-white px-4 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center space-x-3 pointer-events-none z-50">
         <i data-lucide="check" class="text-green-400 w-5 h-5"></i>
         <div>
-            <p class="font-medium text-sm" id="toast-title">Procesado</p>
-            <p class="text-xs text-slate-300" id="toast-msg">Datos guardados en bitácora.</p>
+            <p id="toast-title" class="font-medium text-sm">Registro procesado</p>
+            <p id="toast-desc" class="text-xs text-slate-300">Datos sincronizados correctamente</p>
         </div>
     </div>
 
     <script>
-        // --- CONFIGURACIÓN ---
-        const SCRIPT_URL_REPOSITORIO = "https://script.google.com/macros/s/AKfycbwww2nftVobPGObs3d3G20L1MHHiELZdvAWgreBCsLHbzrnwU7oxvfceKzAUAA0pLOE8g/exec";
+        // Inicializar iconos de Lucide
+        lucide.createIcons();
+
+        // --- CONFIGURACIÓN DE URLS ---
         const CSV_URL_OPERACIONES = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRmSJNd-i3Ibje2p05J4XtKdM5nCxNznlzba-jQYE2VXhlkWyI56VYz4hKH3l6i6tmqu2mL-BZgwmxh/pub?gid=1846343735&single=true&output=csv";
         const CSV_URL_PENSIONES = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRmSJNd-i3Ibje2p05J4XtKdM5nCxNznlzba-jQYE2VXhlkWyI56VYz4hKH3l6i6tmqu2mL-BZgwmxh/pub?gid=1353288813&single=true&output=csv";
+        const SCRIPT_URL_REPOSITORIO = "https://script.google.com/macros/s/AKfycbwww2nftVobPGObs3d3G20L1MHHiELZdvAWgreBCsLHbzrnwU7oxvfceKzAUAA0pLOE8g/exec";
 
-        let records = [];
-        let currentTab = 'Operaciones';
-
+        // Elementos del DOM
         const container = document.getElementById('cards-container');
-        const pendingCount = document.getElementById('pending-count');
+        const loader = document.getElementById('loader');
+        const errorMessage = document.getElementById('error-message');
+        const errorText = document.getElementById('error-text');
+        const emptyState = document.getElementById('empty-state');
         const counterBadge = document.getElementById('counter-badge');
+        const pendingCount = document.getElementById('pending-count');
         const toast = document.getElementById('success-toast');
 
-        document.addEventListener("DOMContentLoaded", () => {
-            lucide.createIcons();
-            fetchData();
-        });
+        // Estado de la aplicación
+        let records = [];
+        let currentTab = 'Operaciones'; 
 
-        function fetchData() {
-            container.innerHTML = '';
-            document.getElementById('loader').classList.remove('hidden');
-            document.getElementById('empty-state').classList.add('hidden');
-            
-            Promise.all([
-                fetchCsv(CSV_URL_OPERACIONES, 'Operaciones'),
-                fetchCsv(CSV_URL_PENSIONES, 'Pensiones')
-            ]).then(([ops, pen]) => {
-                records = [...ops, ...pen];
-                processData();
-            });
-        }
+        // Iniciar carga de datos al cargar la página
+        document.addEventListener("DOMContentLoaded", fetchData);
 
-        function fetchCsv(url, source) {
+        function fetchCsv(url, sourceName) {
             return new Promise((resolve) => {
+                if (!url) {
+                    resolve([]);
+                    return;
+                }
                 Papa.parse(url, {
                     download: true,
                     header: true,
                     skipEmptyLines: true,
-                    complete: (results) => {
-                        // Guardamos el índice original para saber qué fila de Sheets actualizar
+                    complete: function(results) {
                         const data = results.data.map((row, index) => {
-                            row._source = source;
-                            row._originalRowIndex = index; 
+                            row._source = sourceName;
+                            row._originalRowIndex = index + 2; // Referencia a la fila real en Sheets (encabezado es 1)
                             return row;
                         });
                         resolve(data);
+                    },
+                    error: function(err) {
+                        console.error(`Error al leer CSV de ${sourceName}:`, err);
+                        resolve([]); 
                     }
                 });
             });
         }
 
-        function processData() {
-            let count = 0;
+        function fetchData() {
             container.innerHTML = '';
-            document.getElementById('loader').classList.add('hidden');
+            loader.classList.remove('hidden');
+            errorMessage.classList.add('hidden');
+            emptyState.classList.add('hidden');
+            counterBadge.classList.add('hidden');
 
-            records.forEach((row, index) => {
-                if (row._source !== currentTab) return;
+            Promise.all([
+                fetchCsv(CSV_URL_OPERACIONES, 'Operaciones'),
+                fetchCsv(CSV_URL_PENSIONES, 'Pensiones')
+            ]).then(([opsData, penData]) => {
+                records = [...opsData, ...penData];
+                if(records.length === 0) {
+                    loader.classList.add('hidden');
+                    errorMessage.classList.remove('hidden');
+                    errorText.textContent = "No se pudo acceder a las bitácoras. Verifica los enlaces.";
+                    return;
+                }
+                processData(records);
+            });
+        }
 
-                // Detectar si el comentario está vacío (según columnas comunes)
-                const commentKey = Object.keys(row).find(k => 
-                    k.toLowerCase().includes('comentario') || k.toLowerCase().includes('observacion')
+        function processData(data) {
+            let pendingCards = 0;
+            container.innerHTML = ''; 
+            emptyState.classList.add('hidden');
+
+            const firstValidRow = data.find(row => Object.keys(row).length > 2);
+            const headers = firstValidRow ? Object.keys(firstValidRow).filter(k => k !== '_source' && k !== '_originalRowIndex') : [];
+            
+            const titleColVariations = ["nombre", "cliente", "asegurado", "trabajador", "id", "folio"];
+            let titleColName = headers.find(h => titleColVariations.includes(h.toLowerCase().trim()));
+            const subtitleColVariations = ["nss", "rfc", "motivo", "estatus", "tipo"];
+            let subtitleColName = headers.find(h => subtitleColVariations.includes(h.toLowerCase().trim()));
+
+            data.forEach((row, index) => {
+                let commentKey = Object.keys(row).find(key => 
+                    key !== '_source' && (
+                    key.toLowerCase().includes('comentario') || 
+                    key.toLowerCase().includes('observacion') ||
+                    key.toLowerCase().includes('nota'))
                 );
-                const isCommentEmpty = !row[commentKey] || row[commentKey].trim() === "";
+                
+                let comentarioVal = commentKey ? row[commentKey] : "";
+                const isCommentEmpty = !comentarioVal || String(comentarioVal).trim() === "";
+                const belongsToCurrentTab = (row._source === currentTab);
 
-                if (isCommentEmpty) {
-                    renderCard(row, index);
-                    count++;
+                if (isCommentEmpty && belongsToCurrentTab) {
+                    renderCard(row, index, titleColName, subtitleColName, row._source);
+                    pendingCards++;
                 }
             });
 
-            pendingCount.textContent = count;
-            counterBadge.classList.toggle('hidden', count === 0);
-            document.getElementById('empty-state').classList.toggle('hidden', count > 0);
+            loader.classList.add('hidden');
+            if (pendingCards === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                counterBadge.classList.remove('hidden');
+                pendingCount.textContent = pendingCards;
+            }
             lucide.createIcons();
         }
 
-        function renderCard(row, globalIndex) {
-            const isPensiones = currentTab === 'Pensiones';
-            let titulo = row["Nombre"] || row["Asesor"] || row["Trabajador"] || "Sin Nombre";
-            let subtitulo = isPensiones ? "Asesor" : (row["RFC"] || row["NSS"] || "");
+        function renderCard(row, id, titleColName, subtitleColName, sourceTab) {
+            let titulo = titleColName ? (row[titleColName] || `Registro #${id + 1}`) : `Registro #${id + 1}`;
+            let subtitulo = subtitleColName ? (row[subtitleColName] || "") : "";
+            
+            if(!subtitulo) subtitulo = row["RFC"] || row["NSS"] || row["Fecha"] || "Asesor";
+
+            if (sourceTab === 'Pensiones') {
+                const asesorKey = Object.keys(row).find(k => k.toLowerCase().includes('asesor') || k.toLowerCase().includes('promotor'));
+                let nombreAsesor = asesorKey && row[asesorKey] ? row[asesorKey] : "Asesor no asignado";
+                if (nombreAsesor !== "Asesor no asignado") {
+                    nombreAsesor = nombreAsesor.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
+                }
+                titulo = nombreAsesor;
+                subtitulo = "Asesor";
+            }
 
             const card = document.createElement('div');
             card.className = 'card bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden';
-            card.id = `card-${globalIndex}`;
-            
+            card.id = `card-${id}`;
+
+            let detailsHtmlCliente = '';
+            let detailsHtmlAsesor = '';
+            let keywordsAsesor = [];
+            let keywordsClientePensiones = ["nss", "curp", "nombre"];
+
+            if (sourceTab === 'Operaciones') {
+                keywordsAsesor = ["tienda", "ciudad", "estado", "coordinador", "estatus", "fecha y hora", "próxima llamada", "proxima llamada"];
+            } else if (sourceTab === 'Pensiones') {
+                keywordsAsesor = ["tienda", "fecha del servicios", "fecha del servicio", "fecha de servicio", "tipo de disposición", "tipo de disposicion", "análisis", "analisis", "acción servicios", "accion servicios"];
+            }
+
+            for (const [key, value] of Object.entries(row)) {
+                if (key === '_source' || key === '_originalRowIndex') continue;
+                if (sourceTab === 'Pensiones' && (key.toLowerCase().includes('asesor') || key.toLowerCase().includes('promotor'))) continue;
+                
+                if(value && value.trim() !== "" && key.trim() !== "") {
+                    const keyLower = key.toLowerCase();
+                    const isAsesorField = keywordsAsesor.some(kw => keyLower.includes(kw));
+                    let isClienteField = sourceTab === 'Pensiones' ? keywordsClientePensiones.some(kw => keyLower.includes(kw)) : !isAsesorField;
+                    
+                    if (isAsesorField || isClienteField) {
+                        let displayKey = key;
+                        if (sourceTab === 'Pensiones' && (keyLower.includes('fecha del servicio') || keyLower.includes('fecha de servicio'))) displayKey = 'Fecha del servicio';
+                        const fieldHtml = `<div class="flex flex-col mb-3"><span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">${displayKey}</span><span class="text-sm text-slate-800 break-words">${value}</span></div>`;
+                        if (isAsesorField) detailsHtmlAsesor += fieldHtml; else if (isClienteField) detailsHtmlCliente += fieldHtml;
+                    }
+                }
+            }
+
+            const isOperaciones = sourceTab === 'Operaciones';
             card.innerHTML = `
-                <div class="p-4 cursor-pointer hover:bg-slate-50 flex justify-between items-center" onclick="toggleCard(${globalIndex})">
+                <div class="p-4 cursor-pointer hover:bg-slate-50 transition-colors flex justify-between items-center" onclick="toggleCard(${id})">
                     <div class="flex items-start space-x-4">
-                        <div class="bg-indigo-100 p-2 rounded-lg text-indigo-600 mt-1">
-                            <i data-lucide="user" class="w-5 h-5"></i>
-                        </div>
+                        <div class="bg-indigo-100 p-2 rounded-lg text-indigo-600 mt-1"><i data-lucide="user" class="w-5 h-5"></i></div>
                         <div>
                             <h3 class="font-bold text-slate-800 text-lg leading-tight">${titulo}</h3>
-                            <p class="text-slate-500 text-sm">${subtitulo}</p>
+                            <p class="text-slate-700 text-sm mt-1">${subtitulo}</p>
                         </div>
                     </div>
-                    <div class="text-slate-400 chevron-icon p-2">
-                        <i data-lucide="chevron-down" class="w-5 h-5"></i>
-                    </div>
+                    <div class="text-slate-400 chevron-icon p-2"><i data-lucide="chevron-down" class="w-5 h-5"></i></div>
                 </div>
-
                 <div class="card-content bg-slate-50 border-t border-slate-100 px-4 pb-4">
-                    <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm mt-2">
-                        <h4 class="text-sm font-bold text-indigo-700 mb-4 flex items-center">
-                            <i data-lucide="edit-3" class="w-4 h-4 mr-2"></i> Gestión de Registro
-                        </h4>
-                        
+                    <div class="mb-6 pt-2">
+                        <div class="flex border-b border-slate-200 mb-4">
+                            <button onclick="switchSubTab(${id}, 'asesor')" id="btn-asesor-${id}" class="py-2 px-4 text-sm font-medium border-b-2 border-indigo-500 text-indigo-600 focus:outline-none transition-colors"><i data-lucide="briefcase" class="w-4 h-4 inline-block mr-1 align-text-bottom"></i> Info del asesor</button>
+                            ${!isOperaciones ? `<button onclick="switchSubTab(${id}, 'cliente')" id="btn-cliente-${id}" class="py-2 px-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none transition-colors"><i data-lucide="user" class="w-4 h-4 inline-block mr-1 align-text-bottom"></i> Info del cliente</button>` : ''}
+                        </div>
+                        <div id="content-asesor-${id}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 block">${detailsHtmlAsesor || '<p class="text-sm text-slate-500">No hay información.</p>'}</div>
+                        ${!isOperaciones ? `<div id="content-cliente-${id}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 hidden">${detailsHtmlCliente || '<p class="text-sm text-slate-500">No hay información.</p>'}</div>` : ''}
+                    </div>
+                    <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+                        <h4 class="text-sm font-bold text-indigo-700 mb-4 flex items-center"><i data-lucide="edit-3" class="w-4 h-4 mr-2"></i>Gestión de Llamada</h4>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-4">
                             <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">Estatus de Contacto *</label>
-                                <select id="status-${globalIndex}" onchange="handleStatusChange(${globalIndex})" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                                    <option value="" disabled selected>Selecciona...</option>
+                                <label for="status-${id}" class="block text-sm font-medium text-slate-700 mb-1">Estatus de Contacto *</label>
+                                <select id="status-${id}" onchange="handleStatusChange(${id})" class="w-full rounded-md border border-slate-300 px-3 py-2 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="" disabled selected>Selecciona estatus...</option>
                                     <option value="Contactado">Contactado</option>
                                     <option value="Reagendado">Reagendado</option>
                                     <option value="No contestó">No contestó</option>
                                 </select>
                             </div>
-                            <div id="date-container-${globalIndex}" class="hidden">
-                                <label class="block text-sm font-medium text-slate-700 mb-1">Próxima llamada</label>
-                                <input type="datetime-local" id="date-${globalIndex}" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none">
+                            <div id="datetime-container-${id}" class="hidden">
+                                <label for="datetime-${id}" class="block text-sm font-medium text-slate-700 mb-1">Próxima llamada</label>
+                                <input type="datetime-local" id="datetime-${id}" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                             </div>
                         </div>
-
-                        <div class="mb-5">
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Comentarios</label>
-                            <textarea id="comment-${globalIndex}" rows="2" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none resize-none"></textarea>
+                        <div id="comment-container-${id}" class="mb-5 hidden">
+                            <label for="comment-${id}" class="block text-sm font-medium text-slate-700 mb-1">Comentarios</label>
+                            <textarea id="comment-${id}" rows="3" placeholder="Detalles..." class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"></textarea>
                         </div>
-
-                        <div class="flex justify-end">
-                            <button onclick="saveData(${globalIndex})" class="bg-indigo-600 text-white px-6 py-2 rounded-md text-sm font-bold hover:bg-indigo-700 transition-colors flex items-center">
-                                <i data-lucide="save" class="w-4 h-4 mr-2"></i> Guardar Inmediato
-                            </button>
-                        </div>
+                        <div class="flex justify-end"><button onclick="saveData(${id})" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"><i data-lucide="save" class="w-4 h-4 mr-2"></i>Guardar y Procesar</button></div>
                     </div>
                 </div>
             `;
             container.appendChild(card);
         }
 
+        // --- LÓGICA DE GUARDADO INTEGRADA (Apps Script) ---
+        function saveData(id) {
+            const statusInput = document.getElementById(`status-${id}`);
+            const datetimeInput = document.getElementById(`datetime-${id}`);
+            const commentInput = document.getElementById(`comment-${id}`);
+            const card = document.getElementById(`card-${id}`);
+
+            if(!statusInput || !statusInput.value) {
+                statusInput.classList.add('border-red-500', 'ring-2', 'ring-red-200');
+                setTimeout(() => statusInput.classList.remove('border-red-500', 'ring-2', 'ring-red-200'), 2000);
+                return;
+            }
+
+            const payload = {
+                fuente: currentTab,
+                rowId: records[id]._originalRowIndex, // Enviamos el índice real de la fila de Sheets
+                estatus: statusInput.value,
+                proxima: datetimeInput.value || "N/A",
+                comentario: commentInput.value || "Sin comentarios"
+            };
+
+            // Respuesta optimista inmediata
+            card.classList.add('fade-out');
+            setTimeout(() => {
+                card.remove();
+                actualizarContadores();
+                showToast("Registro procesado", "Sincronizando con Google Sheets...");
+            }, 150);
+
+            // Envío Fire & Forget
+            fetch(SCRIPT_URL_REPOSITORIO, {
+                method: 'POST',
+                mode: 'no-cors',
+                cache: 'no-cache',
+                body: JSON.stringify(payload)
+            }).catch(err => console.error("Error de red:", err));
+        }
+
         function toggleCard(id) {
             document.getElementById(`card-${id}`).classList.toggle('expanded');
         }
 
+        function switchSubTab(cardId, tabName) {
+            const btnCliente = document.getElementById(`btn-cliente-${cardId}`);
+            const btnAsesor = document.getElementById(`btn-asesor-${cardId}`);
+            const contentCliente = document.getElementById(`content-cliente-${cardId}`);
+            const contentAsesor = document.getElementById(`content-asesor-${cardId}`);
+
+            const active = "py-2 px-4 text-sm font-medium border-b-2 border-indigo-500 text-indigo-600 focus:outline-none transition-colors".split(" ");
+            const inactive = "py-2 px-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none transition-colors".split(" ");
+
+            if(btnCliente) { btnCliente.className = ""; btnCliente.classList.add(...(tabName==='cliente'?active:inactive)); }
+            if(btnAsesor) { btnAsesor.className = ""; btnAsesor.classList.add(...(tabName==='asesor'?active:inactive)); }
+            if(contentCliente) contentCliente.classList.toggle('hidden', tabName !== 'cliente');
+            if(contentAsesor) contentAsesor.classList.toggle('hidden', tabName !== 'asesor');
+        }
+
         function handleStatusChange(id) {
             const status = document.getElementById(`status-${id}`).value;
-            document.getElementById(`date-container-${id}`).classList.toggle('hidden', status !== 'Reagendado');
+            document.getElementById(`datetime-container-${id}`).classList.toggle('hidden', status !== 'Reagendado');
+            document.getElementById(`comment-container-${id}`).classList.toggle('hidden', status !== 'Contactado');
         }
 
-        function saveData(globalIndex) {
-            const statusVal = document.getElementById(`status-${globalIndex}`).value;
-            const dateVal = document.getElementById(`date-${globalIndex}`).value;
-            const commentVal = document.getElementById(`comment-${globalIndex}`).value;
-            const card = document.getElementById(`card-${globalIndex}`);
-
-            if(!statusVal) {
-                alert("Selecciona un estatus");
-                return;
-            }
-
-            // --- ACTUALIZACIÓN OPTIMISTA (INSTANTÁNEA) ---
-            const payload = {
-                fuente: currentTab,
-                rowId: records[globalIndex]._originalRowIndex, // Fila real en el Excel
-                estatus: statusVal,
-                proxima: dateVal || "N/A",
-                comentario: commentVal || "Sin comentarios"
-            };
-
-            // 1. Quitar visualmente de inmediato
-            card.classList.add('fade-out');
-            setTimeout(() => {
-                card.remove();
-                actualizarUI();
-                showToast("Enviado", `Registro de ${currentTab} guardado.`);
-            }, 150);
-
-            // 2. Enviar al repositorio en segundo plano
-            fetch(SCRIPT_URL_REPOSITORIO, {
-                method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify(payload)
-            }).catch(e => console.error("Error de envío:", e));
-        }
-
-        function actualizarUI() {
-            let current = parseInt(pendingCount.textContent);
-            if(current > 0) {
-                current--;
-                pendingCount.textContent = current;
-                if(current === 0) {
-                    counterBadge.classList.add('hidden');
-                    document.getElementById('empty-state').classList.remove('hidden');
-                }
-            }
-        }
-
-        function switchTab(tab) {
-            currentTab = tab;
+        function switchTab(tabName) {
+            currentTab = tabName;
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('border-indigo-500', 'text-indigo-600');
                 btn.classList.add('border-transparent', 'text-slate-500');
             });
-            document.getElementById(`tab-${tab}`).classList.add('border-indigo-500', 'text-indigo-600');
-            processData();
+            document.getElementById(`tab-${tabName}`).classList.add('border-indigo-500', 'text-indigo-600');
+            processData(records);
         }
 
-        function showToast(title, msg) {
+        function actualizarContadores() {
+            let current = parseInt(pendingCount.textContent);
+            if (current > 0) {
+                current--;
+                pendingCount.textContent = current;
+                if (current === 0) {
+                    counterBadge.classList.add('hidden');
+                    emptyState.classList.remove('hidden');
+                }
+            }
+        }
+
+        function showToast(title, desc) {
             document.getElementById('toast-title').textContent = title;
-            document.getElementById('toast-msg').textContent = msg;
+            document.getElementById('toast-desc').textContent = desc;
             toast.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3500);
         }
     </script>
 </body>
