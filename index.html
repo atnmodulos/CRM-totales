@@ -3,147 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CRM - Gestión de Rechazos</title>
+    <title>Rechazos Totales</title>
+    <!-- Fuentes de Google: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'inner-soft': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.02)',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- PapaParse para leer el CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Flatpickr para calendario -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/airbnb.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
+    
     <style>
-        /* Estilos personalizados adicionales a Tailwind */
-        body {
-            background-color: #f8fafc; /* slate-50 */
-        }
+        body { background-color: #f4f7f9; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Ocultar scrollbar para un look más limpio en las tarjetas */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
+        /* Animaciones suaves para las tarjetas */
+        .card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08); border-color: #e2e8f0; }
+        
+        /* Contenido expandible */
+        .card-content { 
+            max-height: 0; 
+            overflow: hidden; 
+            transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease, padding 0.4s ease; 
+            opacity: 0; 
         }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
+        .card.expanded .card-content { max-height: 1500px; opacity: 1; padding-top: 1rem; padding-bottom: 1.5rem; }
+        
+        /* Rotación del icono */
+        .chevron-icon { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card.expanded .chevron-icon { transform: rotate(180deg); color: #4f46e5; }
+        
+        /* Animación de salida al guardar */
+        .fade-out { opacity: 0; transform: scale(0.98) translateY(-10px); pointer-events: none; }
 
-        /* Animación suave para la expansión */
-        .card-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.4s ease-out, opacity 0.3s ease-out, padding 0.3s ease-out;
-            opacity: 0;
-        }
-        
-        .card.expanded .card-content {
-            max-height: 1000px; /* Un valor alto para asegurar que quepa el contenido */
-            opacity: 1;
-            padding-top: 1rem; /* pt-4 en Tailwind */
-        }
-        
-        .chevron-icon {
-            transition: transform 0.3s ease;
-        }
-        
-        .card.expanded .chevron-icon {
-            transform: rotate(180deg);
-        }
-        
-        /* Efecto de salida al guardar */
-        .fade-out {
-            opacity: 0;
-            transform: scale(0.95);
-            transition: all 0.4s ease;
-        }
+        /* Estilo personalizado de Flatpickr para que coincida con la marca */
+        .flatpickr-calendar { font-family: 'Inter', sans-serif !important; border-radius: 12px !important; border: none !important; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important; }
     </style>
 </head>
-<body class="text-slate-800 antialiased h-screen flex flex-col">
+<body class="text-slate-800 antialiased h-screen flex flex-col font-sans">
 
-    <header class="bg-indigo-600 text-white shadow-md z-10 sticky top-0">
-        <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+    <!-- Header Glassmorphism -->
+    <header class="bg-white/85 backdrop-blur-lg border-b border-slate-200 shadow-sm z-20 sticky top-0 transition-all">
+        <div class="w-full px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
             <div class="flex items-center space-x-3">
-                <i data-lucide="phone-call" class="w-6 h-6"></i>
-                <h1 class="text-xl font-bold tracking-tight">CRM Retiros y Vivienda</h1>
+                <div class="bg-indigo-600 p-2 rounded-xl shadow-md text-white">
+                    <i data-lucide="phone-call" class="w-5 h-5"></i>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight text-slate-800">Rechazos Totales</h1>
             </div>
-            <div class="flex items-center space-x-4 text-sm">
-                <span id="counter-badge" class="bg-indigo-800 px-3 py-1 rounded-full font-medium shadow-inner hidden">
+            <div class="flex items-center space-x-4">
+                <span id="counter-badge" class="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full text-sm font-semibold border border-slate-200 hidden flex items-center gap-1.5 transition-all">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span id="pending-count">0</span> pendientes
                 </span>
-                <button onclick="fetchData()" class="p-2 hover:bg-indigo-500 rounded-full transition-colors tooltip" title="Actualizar Datos">
+                <button onclick="fetchData()" class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" title="Actualizar Datos">
                     <i data-lucide="refresh-cw" class="w-5 h-5"></i>
                 </button>
             </div>
         </div>
-    </header>
-
-    <div class="bg-white border-b border-slate-200 sticky top-[68px] z-10 shadow-sm">
-        <div class="max-w-4xl mx-auto px-4 md:px-6 lg:px-8">
-            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-                <button onclick="switchTab('Operaciones')" id="tab-Operaciones" class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-indigo-500 text-indigo-600 transition-colors focus:outline-none">
-                    <div class="flex items-center space-x-2">
-                        <i data-lucide="briefcase" class="w-4 h-4"></i>
-                        <span>Operaciones</span>
-                    </div>
+        
+        <!-- Tabs de Navegación -->
+        <div class="w-full px-4 sm:px-6 lg:px-8">
+            <nav class="flex space-x-6" aria-label="Tabs">
+                <button onclick="switchTab('Operaciones')" id="tab-Operaciones" class="tab-btn py-3 border-b-2 font-semibold text-sm transition-all focus:outline-none flex items-center space-x-2 border-indigo-600 text-indigo-600">
+                    <i data-lucide="briefcase" class="w-4 h-4"></i>
+                    <span>Operaciones</span>
                 </button>
-                <button onclick="switchTab('Pensiones')" id="tab-Pensiones" class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-colors focus:outline-none">
-                    <div class="flex items-center space-x-2">
-                        <i data-lucide="piggy-bank" class="w-4 h-4"></i>
-                        <span>Pensiones</span>
-                    </div>
+                <button onclick="switchTab('Pensiones')" id="tab-Pensiones" class="tab-btn py-3 border-b-2 font-semibold text-sm transition-all focus:outline-none flex items-center space-x-2 border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300">
+                    <i data-lucide="piggy-bank" class="w-4 h-4"></i>
+                    <span>Pensiones</span>
                 </button>
             </nav>
         </div>
-    </div>
+    </header>
 
+    <!-- Main Content -->
     <main class="flex-grow overflow-y-auto p-4 md:p-6 lg:p-8 no-scrollbar">
-        <div class="max-w-4xl mx-auto">
+        <div class="w-full max-w-screen-2xl mx-auto">
             
-            <div id="loader" class="flex flex-col items-center justify-center py-20">
-                <i data-lucide="loader-2" class="w-10 h-10 text-indigo-500 animate-spin mb-4"></i>
-                <p class="text-slate-500 font-medium">Conectando con Google Sheets...</p>
-                <p class="text-xs text-slate-400 mt-2">Buscando registros sin atender</p>
+            <!-- Estado de carga -->
+            <div id="loader" class="flex flex-col items-center justify-center py-32 transition-opacity duration-300">
+                <div class="relative">
+                    <div class="w-12 h-12 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin"></div>
+                </div>
+                <p class="text-slate-600 font-medium mt-4">Sincronizando registros...</p>
+                <p class="text-sm text-slate-400 mt-1">Conectando de forma segura con Google Sheets</p>
             </div>
 
-            <div id="error-message" class="hidden bg-red-50 border-l-4 border-red-500 p-4 rounded-md shadow-sm mb-6">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <i data-lucide="alert-circle" class="h-5 w-5 text-red-400"></i>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-red-700 font-medium" id="error-text">
-                            Error al cargar los datos.
-                        </p>
-                    </div>
+            <!-- Estado de error -->
+            <div id="error-message" class="hidden bg-rose-50 border border-rose-200 p-4 rounded-xl shadow-sm mb-6 flex items-start space-x-3">
+                <i data-lucide="alert-triangle" class="h-5 w-5 text-rose-500 mt-0.5"></i>
+                <div>
+                    <h4 class="text-sm font-bold text-rose-800">Error de conexión</h4>
+                    <p class="text-sm text-rose-600 mt-1" id="error-text">No se pudieron cargar los datos.</p>
                 </div>
             </div>
 
-            <div id="empty-state" class="hidden flex flex-col items-center justify-center py-20 text-center">
-                <div class="bg-green-100 p-4 rounded-full mb-4">
-                    <i data-lucide="check-circle-2" class="w-12 h-12 text-green-600"></i>
+            <!-- Estado vacío (sin pendientes) -->
+            <div id="empty-state" class="hidden flex flex-col items-center justify-center py-24 text-center">
+                <div class="bg-white p-6 rounded-full shadow-soft border border-slate-100 mb-5 relative">
+                    <div class="absolute inset-0 bg-emerald-400 rounded-full animate-ping opacity-20"></div>
+                    <i data-lucide="check-circle" class="w-12 h-12 text-emerald-500 relative z-10"></i>
                 </div>
-                <h3 class="text-lg font-bold text-slate-800 mb-1">¡Todo al día!</h3>
-                <p class="text-slate-500 max-w-sm">No hay registros pendientes sin comentarios en esta pestaña.</p>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">¡Bandeja limpia!</h3>
+                <p class="text-slate-500 max-w-sm mx-auto">Has atendido todos los registros programados. Tómate un respiro o revisa más tarde.</p>
             </div>
 
-            <div id="cards-container" class="space-y-4">
-                </div>
-
+            <!-- Contenedor de Tarjetas CRM -->
+            <div id="cards-container" class="space-y-4"></div>
         </div>
     </main>
 
-    <div id="success-toast" class="fixed bottom-4 right-4 bg-slate-800 text-white px-4 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center space-x-3 pointer-events-none z-50">
-        <i data-lucide="check" class="text-green-400 w-5 h-5"></i>
+    <!-- Success Toast -->
+    <div id="success-toast" class="fixed bottom-6 right-6 bg-slate-800 text-white px-5 py-4 rounded-xl shadow-2xl transform translate-y-24 opacity-0 transition-all duration-500 flex items-center space-x-4 pointer-events-none z-50 border border-slate-700">
+        <div class="bg-emerald-500/20 p-2 rounded-full">
+            <i data-lucide="check" class="text-emerald-400 w-5 h-5"></i>
+        </div>
         <div>
-            <p id="toast-title" class="font-medium text-sm">Registro procesado</p>
-            <p id="toast-desc" class="text-xs text-slate-300">Datos sincronizados correctamente</p>
+            <p class="font-bold text-sm text-white">Registro guardado</p>
+            <p class="text-xs text-slate-300 mt-0.5">La bitácora se ha actualizado correctamente.</p>
         </div>
     </div>
 
     <script>
-        // Inicializar iconos de Lucide
         lucide.createIcons();
 
-        // --- CONFIGURACIÓN DE URLS ---
+        const SCRIPT_URL_REPOSITORIO = "https://script.google.com/macros/s/AKfycbyRdiL78O5zkXjaRHhDSdL6flFEZBSQrneanpOXa-QdUdFQ-jHnKaQ30jLOJY1Nzx0/exec";
         const CSV_URL_OPERACIONES = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRmSJNd-i3Ibje2p05J4XtKdM5nCxNznlzba-jQYE2VXhlkWyI56VYz4hKH3l6i6tmqu2mL-BZgwmxh/pub?gid=1846343735&single=true&output=csv";
         const CSV_URL_PENSIONES = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRmSJNd-i3Ibje2p05J4XtKdM5nCxNznlzba-jQYE2VXhlkWyI56VYz4hKH3l6i6tmqu2mL-BZgwmxh/pub?gid=1353288813&single=true&output=csv";
-        const SCRIPT_URL_REPOSITORIO = "https://script.google.com/macros/s/AKfycbwww2nftVobPGObs3d3G20L1MHHiELZdvAWgreBCsLHbzrnwU7oxvfceKzAUAA0pLOE8g/exec";
 
-        // Elementos del DOM
         const container = document.getElementById('cards-container');
         const loader = document.getElementById('loader');
         const errorMessage = document.getElementById('error-message');
@@ -153,27 +165,23 @@
         const pendingCount = document.getElementById('pending-count');
         const toast = document.getElementById('success-toast');
 
-        // Estado de la aplicación
         let records = [];
-        let currentTab = 'Operaciones'; 
+        let currentTab = 'Operaciones';
 
-        // Iniciar carga de datos al cargar la página
         document.addEventListener("DOMContentLoaded", fetchData);
 
         function fetchCsv(url, sourceName) {
             return new Promise((resolve) => {
-                if (!url) {
-                    resolve([]);
-                    return;
-                }
                 Papa.parse(url, {
                     download: true,
                     header: true,
                     skipEmptyLines: true,
+                    transformHeader: function(header, index) {
+                        return index + "::" + (header ? header.trim() : "");
+                    },
                     complete: function(results) {
-                        const data = results.data.map((row, index) => {
+                        const data = results.data.map(row => {
                             row._source = sourceName;
-                            row._originalRowIndex = index + 2; // Referencia a la fila real en Sheets (encabezado es 1)
                             return row;
                         });
                         resolve(data);
@@ -184,6 +192,40 @@
                     }
                 });
             });
+        }
+
+        function getRealKey(key) {
+            return key.includes('::') ? key.substring(key.indexOf('::') + 2) : key;
+        }
+
+        function parseDateString(dateStr) {
+            if (!dateStr || dateStr.trim() === "") return null;
+            let d = new Date(dateStr);
+            if (!isNaN(d.getTime())) return d;
+            
+            const parts = dateStr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+            if (parts) {
+                const day = parseInt(parts[1], 10);
+                const month = parseInt(parts[2], 10) - 1;
+                const year = parseInt(parts[3], 10);
+                const hours = parts[4] ? parseInt(parts[4], 10) : 0;
+                const minutes = parts[5] ? parseInt(parts[5], 10) : 0;
+                return new Date(year, month, day, hours, minutes);
+            }
+            return null;
+        }
+
+        function isTomorrowOrLater(dateStr) {
+            const scheduledDate = parseDateString(dateStr);
+            if (!scheduledDate) return false;
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); 
+            
+            const scheduledDay = new Date(scheduledDate);
+            scheduledDay.setHours(0, 0, 0, 0); 
+            
+            return scheduledDay > today;
         }
 
         function fetchData() {
@@ -201,72 +243,169 @@
                 if(records.length === 0) {
                     loader.classList.add('hidden');
                     errorMessage.classList.remove('hidden');
-                    errorText.textContent = "No se pudo acceder a las bitácoras. Verifica los enlaces.";
+                    errorText.textContent = "No se pudieron cargar los datos. Revisa la publicación CSV o tu conexión.";
                     return;
                 }
-                processData(records);
+                
+                try {
+                    processData(records);
+                } catch (err) {
+                    console.error("Error crítico al procesar:", err);
+                    loader.classList.add('hidden');
+                    errorMessage.classList.remove('hidden');
+                    errorText.textContent = "Error al organizar la información: " + err.message;
+                }
+            }).catch(error => {
+                console.error("Error de descarga:", error);
+                loader.classList.add('hidden');
+                errorMessage.classList.remove('hidden');
+                errorText.textContent = "Error de red. Verifica tu conexión a internet y los enlaces de Google Sheets.";
             });
         }
 
         function processData(data) {
-            let pendingCards = 0;
-            container.innerHTML = ''; 
+            container.innerHTML = '';
             emptyState.classList.add('hidden');
 
             const firstValidRow = data.find(row => Object.keys(row).length > 2);
-            const headers = firstValidRow ? Object.keys(firstValidRow).filter(k => k !== '_source' && k !== '_originalRowIndex') : [];
+            const headers = firstValidRow ? Object.keys(firstValidRow).filter(k => k !== '_source' && k !== '_intento' && k !== '_scheduledDate') : [];
             
             const titleColVariations = ["nombre", "cliente", "asegurado", "trabajador", "id", "folio"];
-            let titleColName = headers.find(h => titleColVariations.includes(h.toLowerCase().trim()));
+            let titleColName = headers.find(h => titleColVariations.includes(getRealKey(h).toLowerCase().trim()));
+
             const subtitleColVariations = ["nss", "rfc", "motivo", "estatus", "tipo"];
-            let subtitleColName = headers.find(h => subtitleColVariations.includes(h.toLowerCase().trim()));
+            let subtitleColName = headers.find(h => subtitleColVariations.includes(getRealKey(h).toLowerCase().trim()));
+
+            let visibleRecords = [];
 
             data.forEach((row, index) => {
-                let commentKey = Object.keys(row).find(key => 
-                    key !== '_source' && (
-                    key.toLowerCase().includes('comentario') || 
-                    key.toLowerCase().includes('observacion') ||
-                    key.toLowerCase().includes('nota'))
-                );
-                
-                let comentarioVal = commentKey ? row[commentKey] : "";
-                const isCommentEmpty = !comentarioVal || String(comentarioVal).trim() === "";
                 const belongsToCurrentTab = (row._source === currentTab);
+                if (!belongsToCurrentTab) return;
 
-                if (isCommentEmpty && belongsToCurrentTab) {
-                    renderCard(row, index, titleColName, subtitleColName, row._source);
-                    pendingCards++;
+                let isCommentEmpty = false;
+                let activeScheduledDateStr = "";
+
+                const getVal = (colIndex) => {
+                    const k = Object.keys(row).find(key => key.startsWith(colIndex + "::"));
+                    return k ? String(row[k] || "").trim() : "";
+                };
+
+                if (row._source === 'Operaciones') {
+                    const valI = getVal(8), valM = getVal(12), valQ = getVal(16);
+                    const valH = getVal(7), valL = getVal(11), valP = getVal(15);
+
+                    if (valP !== "") activeScheduledDateStr = valP;
+                    else if (valL !== "") activeScheduledDateStr = valL;
+                    else if (valH !== "") activeScheduledDateStr = valH;
+
+                    if (valI !== "" || valM !== "" || valQ !== "") {
+                        isCommentEmpty = false; 
+                    } else if (isTomorrowOrLater(valH) && valL === "") {
+                        isCommentEmpty = false; 
+                    } else if (isTomorrowOrLater(valL) && valP === "") {
+                        isCommentEmpty = false; 
+                    } else {
+                        isCommentEmpty = true; 
+                        
+                        if (valH === "" && valL === "" && valP === "") row._intento = "1er Intento";
+                        else if (valH !== "" && valL === "" && valP === "") row._intento = "2do Intento";
+                        else if (valH !== "" && valL !== "" && valP === "") row._intento = "3er Intento";
+                        else row._intento = "Seguimiento";
+                    }
+                } else if (row._source === 'Pensiones') {
+                    const valY = getVal(24), valAC = getVal(28), valAG = getVal(32);
+                    const valX = getVal(23), valAB = getVal(27), valAF = getVal(31);
+
+                    if (valAF !== "") activeScheduledDateStr = valAF;
+                    else if (valAB !== "") activeScheduledDateStr = valAB;
+                    else if (valX !== "") activeScheduledDateStr = valX;
+
+                    if (valY !== "" || valAC !== "" || valAG !== "") {
+                        isCommentEmpty = false;
+                    } else if (isTomorrowOrLater(valX) && valAB === "") {
+                        isCommentEmpty = false; 
+                    } else if (isTomorrowOrLater(valAB) && valAF === "") {
+                        isCommentEmpty = false; 
+                    } else {
+                        isCommentEmpty = true; 
+                        
+                        if (valX === "" && valAB === "" && valAF === "") row._intento = "1er Intento";
+                        else if (valX !== "" && valAB === "" && valAF === "") row._intento = "2do Intento";
+                        else if (valX !== "" && valAB !== "" && valAF === "") row._intento = "3er Intento";
+                        else row._intento = "Seguimiento";
+                    }
+                }
+
+                if (isCommentEmpty) {
+                    row._scheduledDate = parseDateString(activeScheduledDateStr);
+                    row._originalIndex = index; 
+                    visibleRecords.push(row);
                 }
             });
 
+            visibleRecords.sort((a, b) => {
+                if (a._scheduledDate && b._scheduledDate) {
+                    return a._scheduledDate.getTime() - b._scheduledDate.getTime(); 
+                } else if (a._scheduledDate && !b._scheduledDate) {
+                    return -1; 
+                } else if (!a._scheduledDate && b._scheduledDate) {
+                    return 1;  
+                } else {
+                    return 0; 
+                }
+            });
+
+            visibleRecords.forEach((row) => {
+                renderCard(row, row._originalIndex, titleColName, subtitleColName, row._source);
+            });
+
+            const firstCard = container.querySelector('.card');
+            if (firstCard) {
+                firstCard.classList.add('expanded');
+            }
+
             loader.classList.add('hidden');
-            if (pendingCards === 0) {
+            if (visibleRecords.length === 0) {
                 emptyState.classList.remove('hidden');
             } else {
                 counterBadge.classList.remove('hidden');
-                pendingCount.textContent = pendingCards;
+                pendingCount.textContent = visibleRecords.length;
             }
             lucide.createIcons();
         }
 
+        // --- DISEÑO RENOVADO DE LA TARJETA ---
         function renderCard(row, id, titleColName, subtitleColName, sourceTab) {
             let titulo = titleColName ? (row[titleColName] || `Registro #${id + 1}`) : `Registro #${id + 1}`;
             let subtitulo = subtitleColName ? (row[subtitleColName] || "") : "";
             
-            if(!subtitulo) subtitulo = row["RFC"] || row["NSS"] || row["Fecha"] || "Asesor";
+            if(!subtitulo) {
+               const fallbackKeys = Object.keys(row).filter(k => {
+                   const r = getRealKey(k).toLowerCase();
+                   return r === 'rfc' || r === 'nss' || r === 'fecha';
+               });
+               if (fallbackKeys.length > 0) {
+                   subtitulo = row[fallbackKeys[0]];
+               } else {
+                   subtitulo = "Asesor";
+               }
+            }
 
             if (sourceTab === 'Pensiones') {
-                const asesorKey = Object.keys(row).find(k => k.toLowerCase().includes('asesor') || k.toLowerCase().includes('promotor'));
-                let nombreAsesor = asesorKey && row[asesorKey] ? row[asesorKey] : "Asesor no asignado";
+                const asesorKey = Object.keys(row).find(k => {
+                    const r = getRealKey(k).toLowerCase();
+                    return r.includes('asesor') || r.includes('promotor');
+                });
+                let nombreAsesor = asesorKey && row[asesorKey] ? String(row[asesorKey]) : "Asesor no asignado";
                 if (nombreAsesor !== "Asesor no asignado") {
                     nombreAsesor = nombreAsesor.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
                 }
                 titulo = nombreAsesor;
-                subtitulo = "Asesor";
+                subtitulo = "Asesor"; 
             }
 
             const card = document.createElement('div');
-            card.className = 'card bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden';
+            card.className = 'card bg-white rounded-2xl shadow-soft border border-slate-200/80 overflow-hidden mb-4';
             card.id = `card-${id}`;
 
             let detailsHtmlCliente = '';
@@ -280,51 +419,114 @@
                 keywordsAsesor = ["tienda", "fecha del servicios", "fecha del servicio", "fecha de servicio", "tipo de disposición", "tipo de disposicion", "análisis", "analisis", "acción servicios", "accion servicios"];
             }
 
+            // --- REDISEÑO DE LOS DATOS INTERNOS (Chips/Bloques) ---
             for (const [key, value] of Object.entries(row)) {
-                if (key === '_source' || key === '_originalRowIndex') continue;
-                if (sourceTab === 'Pensiones' && (key.toLowerCase().includes('asesor') || key.toLowerCase().includes('promotor'))) continue;
+                if (key === '_source' || key === '_intento' || key === '_scheduledDate' || key === '_originalIndex') continue; 
                 
-                if(value && value.trim() !== "" && key.trim() !== "") {
-                    const keyLower = key.toLowerCase();
+                const realKey = getRealKey(key);
+                if (sourceTab === 'Pensiones' && (realKey.toLowerCase().includes('asesor') || realKey.toLowerCase().includes('promotor'))) continue;
+                
+                const safeValue = String(value || "");
+                const safeKey = String(realKey || "");
+
+                if(safeValue && safeValue.trim() !== "" && safeKey.trim() !== "") {
+                    const keyLower = safeKey.toLowerCase();
                     const isAsesorField = keywordsAsesor.some(kw => keyLower.includes(kw));
                     let isClienteField = sourceTab === 'Pensiones' ? keywordsClientePensiones.some(kw => keyLower.includes(kw)) : !isAsesorField;
                     
-                    if (isAsesorField || isClienteField) {
-                        let displayKey = key;
-                        if (sourceTab === 'Pensiones' && (keyLower.includes('fecha del servicio') || keyLower.includes('fecha de servicio'))) displayKey = 'Fecha del servicio';
-                        const fieldHtml = `<div class="flex flex-col mb-3"><span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">${displayKey}</span><span class="text-sm text-slate-800 break-words">${value}</span></div>`;
-                        if (isAsesorField) detailsHtmlAsesor += fieldHtml; else if (isClienteField) detailsHtmlCliente += fieldHtml;
+                    // Renombrar dinámicamente "Nombre" a "Nombre de cliente" en Pensiones
+                    let displayKey = safeKey;
+                    if (sourceTab === 'Pensiones' && keyLower === 'nombre') {
+                        displayKey = 'Nombre de cliente';
                     }
+
+                    // Diseño premium de los campos de datos
+                    const fieldHtml = `
+                        <div class="flex flex-col bg-slate-50 p-3.5 rounded-xl border border-slate-100 hover:border-indigo-100 hover:bg-indigo-50/30 transition-colors">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">${displayKey}</span>
+                            <span class="text-sm font-medium text-slate-800 break-words leading-tight">${safeValue}</span>
+                        </div>
+                    `;
+
+                    if (isAsesorField) detailsHtmlAsesor += fieldHtml;
+                    else if (isClienteField) detailsHtmlCliente += fieldHtml;
                 }
             }
 
+            if (!detailsHtmlCliente) detailsHtmlCliente = '<p class="text-sm text-slate-400 italic col-span-full bg-slate-50 p-4 rounded-xl text-center">No hay más detalles disponibles.</p>';
+            if (!detailsHtmlAsesor) detailsHtmlAsesor = '<p class="text-sm text-slate-400 italic col-span-full bg-slate-50 p-4 rounded-xl text-center">No hay más detalles disponibles.</p>';
+
             const isOperaciones = sourceTab === 'Operaciones';
+
+            // --- COLORES PASTEL MODERNOS PARA ETIQUETAS ---
+            let badgeClasses = "bg-slate-100 text-slate-600 border border-slate-200"; 
+            if (row._intento === "1er Intento") badgeClasses = "bg-emerald-50 text-emerald-700 border border-emerald-200";
+            else if (row._intento === "2do Intento") badgeClasses = "bg-amber-50 text-amber-700 border border-amber-200";
+            else if (row._intento === "3er Intento") badgeClasses = "bg-rose-50 text-rose-700 border border-rose-200";
+
+            let timeBadgeHtml = '';
+            if (row._scheduledDate) {
+                const today = new Date();
+                const isToday = row._scheduledDate.getDate() === today.getDate() && row._scheduledDate.getMonth() === today.getMonth() && row._scheduledDate.getFullYear() === today.getFullYear();
+                const timeStr = row._scheduledDate.toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'});
+                
+                if (isToday) {
+                    timeBadgeHtml = `<span class="bg-blue-50 text-blue-700 text-[10px] uppercase font-bold px-2.5 py-1 rounded-full flex items-center gap-1 border border-blue-200"><i data-lucide="clock" class="w-3 h-3"></i> Hoy ${timeStr}</span>`;
+                } else if (row._scheduledDate < today) {
+                    timeBadgeHtml = `<span class="bg-red-50 text-red-700 text-[10px] uppercase font-bold px-2.5 py-1 rounded-full flex items-center gap-1 border border-red-200"><i data-lucide="alert-circle" class="w-3 h-3"></i> Atrasado</span>`;
+                }
+            }
+
+            // --- ESTRUCTURA PRINCIPAL DE LA TARJETA ---
             card.innerHTML = `
-                <div class="p-4 cursor-pointer hover:bg-slate-50 transition-colors flex justify-between items-center" onclick="toggleCard(${id})">
-                    <div class="flex items-start space-x-4">
-                        <div class="bg-indigo-100 p-2 rounded-lg text-indigo-600 mt-1"><i data-lucide="user" class="w-5 h-5"></i></div>
-                        <div>
-                            <h3 class="font-bold text-slate-800 text-lg leading-tight">${titulo}</h3>
-                            <p class="text-slate-700 text-sm mt-1">${subtitulo}</p>
+                <div class="p-5 cursor-pointer hover:bg-slate-50/50 transition-colors flex justify-between items-center group" onclick="toggleCard(${id})">
+                    <div class="flex items-start space-x-4 w-full">
+                        <div class="bg-indigo-50 border border-indigo-100 p-2.5 rounded-full text-indigo-600 shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
+                            <i data-lucide="user" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-grow">
+                            <div class="flex items-center space-x-2 flex-wrap gap-y-2 mb-1">
+                                <h3 class="font-bold text-slate-800 text-base md:text-lg leading-tight tracking-tight">${titulo}</h3>
+                                ${row._intento ? `<span class="${badgeClasses} text-[10px] uppercase font-bold px-2.5 py-1 rounded-full">${row._intento}</span>` : ''}
+                                ${timeBadgeHtml}
+                            </div>
+                            <p class="text-slate-500 text-sm font-medium">${subtitulo}</p>
                         </div>
                     </div>
-                    <div class="text-slate-400 chevron-icon p-2"><i data-lucide="chevron-down" class="w-5 h-5"></i></div>
+                    <div class="text-slate-300 chevron-icon p-2 shrink-0 group-hover:text-indigo-500 transition-colors">
+                        <i data-lucide="chevron-down" class="w-6 h-6"></i>
+                    </div>
                 </div>
-                <div class="card-content bg-slate-50 border-t border-slate-100 px-4 pb-4">
+
+                <div class="card-content bg-white border-t border-slate-100 px-5 pb-5">
+                    
+                    <!-- Pestañas internas -->
                     <div class="mb-6 pt-2">
-                        <div class="flex border-b border-slate-200 mb-4">
-                            <button onclick="switchSubTab(${id}, 'asesor')" id="btn-asesor-${id}" class="py-2 px-4 text-sm font-medium border-b-2 border-indigo-500 text-indigo-600 focus:outline-none transition-colors"><i data-lucide="briefcase" class="w-4 h-4 inline-block mr-1 align-text-bottom"></i> Info del asesor</button>
-                            ${!isOperaciones ? `<button onclick="switchSubTab(${id}, 'cliente')" id="btn-cliente-${id}" class="py-2 px-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none transition-colors"><i data-lucide="user" class="w-4 h-4 inline-block mr-1 align-text-bottom"></i> Info del cliente</button>` : ''}
+                        <div class="flex border-b border-slate-100 mb-5 space-x-6">
+                            <button onclick="switchSubTab(${id}, 'asesor')" id="btn-asesor-${id}" class="pb-3 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 focus:outline-none transition-colors">
+                                Datos del Contacto
+                            </button>
+                            ${!isOperaciones ? `
+                            <button onclick="switchSubTab(${id}, 'cliente')" id="btn-cliente-${id}" class="pb-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300 focus:outline-none transition-colors">
+                                Info del Cliente
+                            </button>
+                            ` : ''}
                         </div>
-                        <div id="content-asesor-${id}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 block">${detailsHtmlAsesor || '<p class="text-sm text-slate-500">No hay información.</p>'}</div>
-                        ${!isOperaciones ? `<div id="content-cliente-${id}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 hidden">${detailsHtmlCliente || '<p class="text-sm text-slate-500">No hay información.</p>'}</div>` : ''}
+                        <div id="content-asesor-${id}" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 block">${detailsHtmlAsesor}</div>
+                        ${!isOperaciones ? `<div id="content-cliente-${id}" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 hidden">${detailsHtmlCliente}</div>` : ''}
                     </div>
-                    <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
-                        <h4 class="text-sm font-bold text-indigo-700 mb-4 flex items-center"><i data-lucide="edit-3" class="w-4 h-4 mr-2"></i>Gestión de Llamada</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-4">
+                    
+                    <!-- Panel de Gestión Rediseñado -->
+                    <div class="bg-slate-50/80 p-5 md:p-6 rounded-2xl border border-slate-200">
+                        <h4 class="text-sm font-bold text-slate-800 mb-5 flex items-center tracking-tight">
+                            <i data-lucide="phone-outgoing" class="w-4 h-4 mr-2 text-indigo-500"></i>
+                            Registro de Gestión
+                        </h4>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                             <div>
-                                <label for="status-${id}" class="block text-sm font-medium text-slate-700 mb-1">Estatus de Contacto *</label>
-                                <select id="status-${id}" onchange="handleStatusChange(${id})" class="w-full rounded-md border border-slate-300 px-3 py-2 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <label for="status-${id}" class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Estatus *</label>
+                                <select id="status-${id}" onchange="handleStatusChange(${id})" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 bg-white text-sm font-medium text-slate-700 focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all cursor-pointer shadow-sm">
                                     <option value="" disabled selected>Selecciona estatus...</option>
                                     <option value="Contactado">Contactado</option>
                                     <option value="Reagendado">Reagendado</option>
@@ -332,57 +534,41 @@
                                 </select>
                             </div>
                             <div id="datetime-container-${id}" class="hidden">
-                                <label for="datetime-${id}" class="block text-sm font-medium text-slate-700 mb-1">Próxima llamada</label>
-                                <input type="datetime-local" id="datetime-${id}" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <label for="datetime-${id}" class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Próxima llamada *</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                                        <i data-lucide="calendar" class="w-4 h-4 text-indigo-400"></i>
+                                    </div>
+                                    <input type="text" id="datetime-${id}" placeholder="Elegir fecha y hora" class="w-full rounded-xl border border-slate-300 pl-11 pr-4 py-2.5 bg-white text-sm font-medium text-slate-700 focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none cursor-pointer hover:border-indigo-400 transition-all shadow-sm">
+                                </div>
                             </div>
                         </div>
-                        <div id="comment-container-${id}" class="mb-5 hidden">
-                            <label for="comment-${id}" class="block text-sm font-medium text-slate-700 mb-1">Comentarios</label>
-                            <textarea id="comment-${id}" rows="3" placeholder="Detalles..." class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"></textarea>
+                        
+                        <div id="comment-container-${id}" class="mb-6 hidden">
+                            <label for="comment-${id}" class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Notas de la llamada *</label>
+                            <textarea id="comment-${id}" rows="2" placeholder="Escribe los detalles importantes aquí..." class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none resize-none shadow-sm transition-all"></textarea>
                         </div>
-                        <div class="flex justify-end"><button onclick="saveData(${id})" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"><i data-lucide="save" class="w-4 h-4 mr-2"></i>Guardar y Procesar</button></div>
+                        
+                        <div class="flex justify-end pt-2 border-t border-slate-200/60 mt-4">
+                            <button onclick="saveData(${id})" class="inline-flex items-center justify-center px-6 py-2.5 border border-transparent text-sm font-semibold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 hover:shadow-lg hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-4 focus:ring-indigo-500/30">
+                                Guardar
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
             container.appendChild(card);
-        }
 
-        // --- LÓGICA DE GUARDADO INTEGRADA (Apps Script) ---
-        function saveData(id) {
-            const statusInput = document.getElementById(`status-${id}`);
-            const datetimeInput = document.getElementById(`datetime-${id}`);
-            const commentInput = document.getElementById(`comment-${id}`);
-            const card = document.getElementById(`card-${id}`);
-
-            if(!statusInput || !statusInput.value) {
-                statusInput.classList.add('border-red-500', 'ring-2', 'ring-red-200');
-                setTimeout(() => statusInput.classList.remove('border-red-500', 'ring-2', 'ring-red-200'), 2000);
-                return;
-            }
-
-            const payload = {
-                fuente: currentTab,
-                rowId: records[id]._originalRowIndex, // Enviamos el índice real de la fila de Sheets
-                estatus: statusInput.value,
-                proxima: datetimeInput.value || "N/A",
-                comentario: commentInput.value || "Sin comentarios"
-            };
-
-            // Respuesta optimista inmediata
-            card.classList.add('fade-out');
-            setTimeout(() => {
-                card.remove();
-                actualizarContadores();
-                showToast("Registro procesado", "Sincronizando con Google Sheets...");
-            }, 150);
-
-            // Envío Fire & Forget
-            fetch(SCRIPT_URL_REPOSITORIO, {
-                method: 'POST',
-                mode: 'no-cors',
-                cache: 'no-cache',
-                body: JSON.stringify(payload)
-            }).catch(err => console.error("Error de red:", err));
+            flatpickr(`#datetime-${id}`, {
+                enableTime: true,
+                dateFormat: "Y-m-d\\TH:i",
+                altInput: true,
+                altFormat: "d \\de F, Y  -  h:i K",
+                locale: "es",
+                minDate: "today",
+                time_24hr: false,
+                disableMobile: "true"
+            });
         }
 
         function toggleCard(id) {
@@ -390,53 +576,184 @@
         }
 
         function switchSubTab(cardId, tabName) {
-            const btnCliente = document.getElementById(`btn-cliente-${cardId}`);
-            const btnAsesor = document.getElementById(`btn-asesor-${cardId}`);
-            const contentCliente = document.getElementById(`content-cliente-${cardId}`);
-            const contentAsesor = document.getElementById(`content-asesor-${cardId}`);
+            const btnCl = document.getElementById(`btn-cliente-${cardId}`);
+            const btnAs = document.getElementById(`btn-asesor-${cardId}`);
+            const conCl = document.getElementById(`content-cliente-${cardId}`);
+            const conAs = document.getElementById(`content-asesor-${cardId}`);
+            
+            const act = "pb-3 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 focus:outline-none transition-colors".split(" ");
+            const inact = "pb-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-300 focus:outline-none transition-colors".split(" ");
 
-            const active = "py-2 px-4 text-sm font-medium border-b-2 border-indigo-500 text-indigo-600 focus:outline-none transition-colors".split(" ");
-            const inactive = "py-2 px-4 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none transition-colors".split(" ");
+            if (btnCl) { btnCl.className = ""; btnCl.classList.add(...inact); if(conCl) conCl.classList.add('hidden'); }
+            if (btnAs) { btnAs.className = ""; btnAs.classList.add(...inact); if(conAs) conAs.classList.add('hidden'); }
 
-            if(btnCliente) { btnCliente.className = ""; btnCliente.classList.add(...(tabName==='cliente'?active:inactive)); }
-            if(btnAsesor) { btnAsesor.className = ""; btnAsesor.classList.add(...(tabName==='asesor'?active:inactive)); }
-            if(contentCliente) contentCliente.classList.toggle('hidden', tabName !== 'cliente');
-            if(contentAsesor) contentAsesor.classList.toggle('hidden', tabName !== 'asesor');
+            if (tabName === 'cliente' && btnCl) { btnCl.className = ""; btnCl.classList.add(...act); conCl.classList.remove('hidden'); }
+            else if (tabName === 'asesor' && btnAs) { btnAs.className = ""; btnAs.classList.add(...act); conAs.classList.remove('hidden'); }
         }
 
         function handleStatusChange(id) {
-            const status = document.getElementById(`status-${id}`).value;
-            document.getElementById(`datetime-container-${id}`).classList.toggle('hidden', status !== 'Reagendado');
-            document.getElementById(`comment-container-${id}`).classList.toggle('hidden', status !== 'Contactado');
+            const st = document.getElementById(`status-${id}`).value;
+            const dtContainer = document.getElementById(`datetime-container-${id}`);
+            const dtInput = document.getElementById(`datetime-${id}`);
+            const commentContainer = document.getElementById(`comment-container-${id}`);
+
+            if (st === 'Reagendado') {
+                dtContainer.classList.remove('hidden');
+            } else if (st === 'No contestó') {
+                dtContainer.classList.remove('hidden');
+                
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                tomorrow.setMinutes(tomorrow.getMinutes() - tomorrow.getTimezoneOffset());
+                
+                const fp = dtInput._flatpickr;
+                if (fp) {
+                    fp.setDate(tomorrow);
+                } else {
+                    dtInput.value = tomorrow.toISOString().slice(0, 16);
+                }
+            } else {
+                dtContainer.classList.add('hidden');
+            }
+            
+            commentContainer.classList.toggle('hidden', st !== 'Contactado');
+        }
+
+        function saveData(id) {
+            const stInput = document.getElementById(`status-${id}`);
+            const st = stInput.value;
+            const dtInput = document.getElementById(`datetime-${id}`);
+            const dt = dtInput.value;
+            const coInput = document.getElementById(`comment-${id}`);
+            const co = coInput.value;
+
+            if(!st) {
+                stInput.classList.add('border-rose-500', 'ring-2', 'ring-rose-500/20');
+                setTimeout(() => stInput.classList.remove('border-rose-500', 'ring-2', 'ring-rose-500/20'), 2000);
+                return;
+            }
+
+            // Validación de campo Próxima Llamada
+            const dtContainer = document.getElementById(`datetime-container-${id}`);
+            if (!dtContainer.classList.contains('hidden') && (!dt || dt.trim() === '')) {
+                // Como usamos Flatpickr, aplicamos el borde rojo a su input visible alterno
+                const visualInput = (dtInput._flatpickr && dtInput._flatpickr.altInput) ? dtInput._flatpickr.altInput : dtInput;
+                visualInput.classList.add('border-rose-500', 'ring-2', 'ring-rose-500/20');
+                setTimeout(() => visualInput.classList.remove('border-rose-500', 'ring-2', 'ring-rose-500/20'), 2000);
+                return;
+            }
+
+            const commentContainer = document.getElementById(`comment-container-${id}`);
+            if (!commentContainer.classList.contains('hidden') && (!co || co.trim() === '')) {
+                coInput.classList.add('border-rose-500', 'ring-2', 'ring-rose-500/20');
+                setTimeout(() => coInput.classList.remove('border-rose-500', 'ring-2', 'ring-rose-500/20'), 2000);
+                return;
+            }
+
+            const registroActual = records.find(r => r._originalIndex === id);
+            let idValue = "";
+
+            if (currentTab === 'Operaciones') {
+                const keyF = Object.keys(registroActual).find(k => k.startsWith("5::")); 
+                idValue = keyF ? registroActual[keyF] : ""; 
+            } else {
+                const keyA = Object.keys(registroActual).find(k => k.startsWith("0::")); 
+                idValue = keyA ? registroActual[keyA] : ""; 
+                if (!idValue || idValue.toString().trim() === "") {
+                    const keyNss = Object.keys(registroActual).find(k => getRealKey(k).toLowerCase() === 'nss');
+                    if (keyNss) idValue = registroActual[keyNss];
+                }
+            }
+
+            if (!idValue || idValue.toString().trim() === "") {
+                console.error("ID no encontrado en posición configurada. Registro:", registroActual);
+                alert("Error: No se encontró valor válido en la columna identificadora para vincularlo.");
+                return;
+            }
+
+            let comentarioFinal = co;
+            if (!comentarioFinal) {
+                if (st === 'Reagendado' || st === 'No contestó') {
+                    comentarioFinal = ""; 
+                } else {
+                    comentarioFinal = "Sin comentarios";
+                }
+            }
+
+            const fechaActualObj = new Date();
+            const diaActual = fechaActualObj.toLocaleDateString('es-MX');
+            const horaActual = fechaActualObj.toLocaleTimeString('es-MX');
+
+            const payload = {
+                fuente: currentTab,
+                idValue: idValue,
+                estatus: st,
+                proxima: dt || "",
+                comentario: comentarioFinal,
+                intento: registroActual._intento,
+                diaCaptura: diaActual,       
+                horaCaptura: horaActual,     
+                timestamp: fechaActualObj.toISOString() 
+            };
+
+            console.group("🚀 Enviando a Google Sheets");
+            console.log("Pestaña:", currentTab);
+            console.log("Identificador Extraído:", idValue);
+            console.log("Momento exacto del registro:", diaActual, horaActual);
+            console.log("Paquete completo:", payload);
+            console.groupEnd();
+
+            const card = document.getElementById(`card-${id}`);
+            card.classList.add('fade-out');
+            
+            setTimeout(() => {
+                card.remove();
+                let c = parseInt(pendingCount.textContent);
+                if (c > 0) {
+                    c--;
+                    pendingCount.textContent = c;
+                    if (c === 0) { 
+                        counterBadge.classList.add('hidden'); 
+                        emptyState.classList.remove('hidden'); 
+                    } else {
+                        const newFirstCard = container.querySelector('.card');
+                        if (newFirstCard && !newFirstCard.classList.contains('expanded')) {
+                            newFirstCard.classList.add('expanded');
+                        }
+                    }
+                }
+            }, 400);
+
+            showToast();
+
+            fetch(SCRIPT_URL_REPOSITORIO, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            }).catch(e => console.error("Error al inyectar datos:", e));
         }
 
         function switchTab(tabName) {
             currentTab = tabName;
             document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('border-indigo-500', 'text-indigo-600');
-                btn.classList.add('border-transparent', 'text-slate-500');
+                btn.classList.remove('border-indigo-600', 'text-indigo-600', 'font-semibold');
+                btn.classList.add('border-transparent', 'text-slate-500', 'hover:text-slate-800', 'font-medium');
             });
-            document.getElementById(`tab-${tabName}`).classList.add('border-indigo-500', 'text-indigo-600');
-            processData(records);
+            const act = document.getElementById(`tab-${tabName}`);
+            act.classList.remove('border-transparent', 'text-slate-500', 'hover:text-slate-800', 'font-medium');
+            act.classList.add('border-indigo-600', 'text-indigo-600', 'font-semibold');
+            container.innerHTML = '';
+            emptyState.classList.add('hidden');
+            counterBadge.classList.add('hidden');
+            if(records.length > 0) processData(records);
         }
 
-        function actualizarContadores() {
-            let current = parseInt(pendingCount.textContent);
-            if (current > 0) {
-                current--;
-                pendingCount.textContent = current;
-                if (current === 0) {
-                    counterBadge.classList.add('hidden');
-                    emptyState.classList.remove('hidden');
-                }
+        function showToast() {
+            if (toast) {
+                toast.classList.remove('translate-y-24', 'opacity-0');
+                setTimeout(() => toast.classList.add('translate-y-24', 'opacity-0'), 3000);
             }
-        }
-
-        function showToast(title, desc) {
-            document.getElementById('toast-title').textContent = title;
-            document.getElementById('toast-desc').textContent = desc;
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3500);
         }
     </script>
 </body>
